@@ -1,0 +1,76 @@
+version: '3.7'
+services:
+
+  #PHP Service
+  app:
+    build:
+      context: .
+      dockerfile: docker-configs/php/Dockerfile
+    image: app
+    container_name: app
+    command: bash -c "php artisan migrate && php-fpm"
+    restart: unless-stopped
+    tty: true
+    env_file:
+      - app/.env
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+      DB_HOST: mysql
+    working_dir: /var/www/html
+    depends_on:
+      - mysql
+    networks:
+      - app-network
+    volumes:
+      - type: bind
+        source: ./app
+        target: /var/www/html
+
+  #Nginx Service
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8081:80"
+      - "444:443"
+    volumes:
+      - ./app/:/var/www/html
+      - ./docker-configs/nginx/conf.d/:/etc/nginx/conf.d/
+    depends_on:
+      - app
+    networks:
+      - app-network
+
+  #MySQL Service
+  mysql:
+    image: mysql:latest
+    #Emulation for AMD64
+    platform: linux/x86_64
+    container_name: mysql
+    restart: unless-stopped
+    command: mysqld --init-file="/etc/mysql/init/init.sql"
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: 0
+    volumes:
+      - mysql:/var/lib/mysql
+      - ./docker-configs/mysql/mysql.cnf:/etc/mysql/mysql.cnf
+      - ./docker-configs/mysql/init.sql:/etc/mysql/init/init.sql
+    networks:
+      - app-network
+
+#Docker Networks
+networks:
+  app-network:
+    name: app-network
+    driver: bridge
+
+#Docker Volumes
+volumes:
+  mysql:
+    driver: local
