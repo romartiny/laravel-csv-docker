@@ -51,6 +51,7 @@ services:
     platform: linux/x86_64
     container_name: mysql
     restart: unless-stopped
+    # Import init db
     command: mysqld --init-file="/etc/mysql/init/init.sql"
     tty: true
     ports:
